@@ -18,39 +18,60 @@ let isLoading = false;
 
 // Get number of images per page from user input (no upper limit)
 function getImagesPerPage() {
-  const val = parseInt(perPageInput?.value, 10);
-  return (val >= 1) ? val : 5; // fallback to 5 if invalid
+  const count = Number(perPageInput.value);
+  return Number.isInteger(count) && count > 0 ? count : 5;
 }
 
 // ────────────────────────────────────────────────
-// Load images (new search or next page)
-async function loadImages(isNewSearch = true) {
+async function loadImages() {
   if (isLoading) return;
 
-  if (isNewSearch) {
-    page = 1;
-    imageGrid.innerHTML = '';
-    currentQuery = searchInput.value.trim();
-    if (!currentQuery) {
-      statusInfo.textContent = 'Please enter a search term';
-      return;
-    }
+  currentQuery = searchInput.value.trim();
+  if (!currentQuery) {
+    statusInfo.textContent = 'Please enter a search term';
+    return;
   }
+
+  imageGrid.innerHTML = '';
+  isLoading = true;
 
   const perPage = getImagesPerPage();
 
-  statusInfo.textContent = `Loading "${currentQuery}" – page ${page} (${perPage} images per page)...`;
+  statusInfo.textContent =
+    `Loading ${perPage} images for "${currentQuery}"...`;
+
   loader.classList.remove('hidden');
-  isLoading = true;
 
   try {
     const response = await fetch(
       `https://api.unsplash.com/search/photos?` +
       `query=${encodeURIComponent(currentQuery)}` +
-      `&page=${page}` +
+      `&page=1` +
       `&per_page=${perPage}` +
       `&client_id=${ACCESS_KEY}`
     );
+
+    if (!response.ok) throw new Error('Failed to load images');
+
+    const data = await response.json();
+
+    if (data.results.length === 0) {
+      statusInfo.textContent = 'No images found';
+    } else {
+      displayImages(data.results);
+      statusInfo.textContent =
+        `Showing ${data.results.length} images`;
+    }
+
+  } catch (err) {
+    console.error(err);
+    statusInfo.textContent = err.message;
+  } finally {
+    loader.classList.add('hidden');
+    isLoading = false;
+  }
+}
+
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -134,26 +155,23 @@ function closeLightbox() {
 
 // ────────────────────────────────────────────────
 // Event Listeners
-searchBtn.addEventListener('click', () => loadImages(true));
-searchInput.addEventListener('keypress', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    loadImages(true);
-  }
+searchBtn.addEventListener('click', loadImages);
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadImages();
 });
+
+perPageInput.addEventListener('change', () => {
+  if (searchInput.value.trim()) loadImages();
+});
+
 
 document.querySelector('.close-lightbox')?.addEventListener('click', closeLightbox);
 lightbox?.addEventListener('click', e => {
   if (e.target === lightbox) closeLightbox();
 });
 
-// Infinite scroll
-window.addEventListener('scroll', () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
-      !isLoading && currentQuery) {
-    loadImages(false);
-  }
-});
+
 
 // Optional: restart search when user changes the number
 perPageInput?.addEventListener('change', () => {
