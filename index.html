@@ -28,6 +28,12 @@
             <h1 class="logo">Dream Scape</h1>
             <div class="search-wrapper glass-card">
                 <input type="text" id="searchInput" placeholder="Search high-resolution images..." autocomplete="off">
+                <!-- Add this to your HTML (near search input) -->
+<div style="margin: 15px 0;">
+  <label for="perPageInput">Images per page:</label>
+  <input type="number" id="perPageInput" min="1" value="5" style="width: 80px; padding: 5px;">
+  <small>(any number ≥ 1)</small>
+</div>
                 <button id="searchBtn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
