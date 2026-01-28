@@ -9,15 +9,23 @@ const loader       = document.getElementById('loader');
 
 let isLoading = false;
 
-/* DEBUG – MUST NOT BE NULL */
-console.log({ searchInput, perPageInput, searchBtn, imageGrid });
+function parsePrompt(prompt) {
+  // Extract number
+  const numberMatch = prompt.match(/\d+/);
+  const count = numberMatch ? parseInt(numberMatch[0], 10) : 5;
 
-function getImagesPerPage() {
-  if (!perPageInput) return 5;
+  // Remove number + common words
+  const query = prompt
+    .replace(/\d+/g, '')
+    .replace(/images?|photos?|pictures?|of|i want|show/gi, '')
+    .trim();
 
-  const count = Number(perPageInput.value);
-  return Number.isInteger(count) && count > 0 ? count : 5;
+  return {
+    count,
+    query: query || prompt
+  };
 }
+
 
 async function loadImages() {
   if (isLoading) return;
