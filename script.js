@@ -1,67 +1,84 @@
-// Unsplash Image Search Gallery
-// Always shows MAX 5 images per search – one request only
+// Unsplash Gallery – NO LIMIT on images per page/load
+// User can enter any number via input field
 
 const ACCESS_KEY = 'z-GznD9KMG_PsVgLdvBxCirlR5o8kpXZ7adhCqvNBvY';
 
-const searchInput  = document.getElementById('searchInput');
-const searchBtn    = document.getElementById('searchBtn');
-const imageGrid    = document.getElementById('imageGrid');
-const loader       = document.getElementById('loader');
-const statusInfo   = document.getElementById('statusInfo');
-const lightbox     = document.getElementById('lightbox');
-const lightboxImg  = document.getElementById('lightboxImg');
+const searchInput     = document.getElementById('searchInput');
+const searchBtn       = document.getElementById('searchBtn');
+const imageGrid       = document.getElementById('imageGrid');
+const loader          = document.getElementById('loader');
+const statusInfo      = document.getElementById('statusInfo');
+const lightbox        = document.getElementById('lightbox');
+const lightboxImg     = document.getElementById('lightboxImg');
+const perPageInput    = document.getElementById('perPageInput');
 
+let currentQuery = '';
+let page = 1;
 let isLoading = false;
 
+// Get number of images per page from user input (no upper limit)
+function getImagesPerPage() {
+  const val = parseInt(perPageInput?.value, 10);
+  return (val >= 1) ? val : 5; // fallback to 5 if invalid
+}
+
 // ────────────────────────────────────────────────
-// Perform search – fetches exactly up to 5 images
-async function searchImages() {
+// Load images (new search or next page)
+async function loadImages(isNewSearch = true) {
   if (isLoading) return;
 
-  const query = searchInput.value.trim();
-  if (!query) {
-    statusInfo.textContent = 'Please enter a search keyword';
-    return;
+  if (isNewSearch) {
+    page = 1;
+    imageGrid.innerHTML = '';
+    currentQuery = searchInput.value.trim();
+    if (!currentQuery) {
+      statusInfo.textContent = 'Please enter a search term';
+      return;
+    }
   }
 
-  // Reset previous results
-  imageGrid.innerHTML = '';
-  statusInfo.textContent = `Searching for "${query}"...`;
+  const perPage = getImagesPerPage();
+
+  statusInfo.textContent = `Loading "${currentQuery}" – page ${page} (${perPage} images per page)...`;
   loader.classList.remove('hidden');
   isLoading = true;
 
   try {
     const response = await fetch(
       `https://api.unsplash.com/search/photos?` +
-      `query=${encodeURIComponent(query)}` +
-      `&page=1` +
-      `&per_page=5` +
+      `query=${encodeURIComponent(currentQuery)}` +
+      `&page=${page}` +
+      `&per_page=${perPage}` +
       `&client_id=${ACCESS_KEY}`
     );
 
     if (!response.ok) {
       if (response.status === 429) {
-        throw new Error('Rate limit reached. Please wait a while.');
+        throw new Error('Rate limit reached – please wait');
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error('API key problem – check your key.');
+        throw new Error('Invalid API key');
       }
-      throw new Error(`Error: ${response.status}`);
+      throw new Error(`HTTP error ${response.status}`);
     }
 
     const data = await response.json();
 
-    if (!data.results || data.results.length === 0) {
+    if (data.results?.length === 0 && isNewSearch) {
       statusInfo.textContent = 'No images found.';
-    } else {
+    } else if (data.results?.length > 0) {
       displayImages(data.results);
-      const count = data.results.length;
-      statusInfo.textContent = `Showing ${count} image${count !== 1 ? 's' : ''} for "${query}"`;
+
+      const total = imageGrid.children.length;
+      statusInfo.textContent = 
+        `Search: "${currentQuery}" • Page ${page} • ${total} images (${perPage} per page)`;
+
+      page++;
     }
 
   } catch (error) {
     console.error('Error:', error);
-    statusInfo.textContent = error.message || 'Failed to load images. Try again.';
+    statusInfo.textContent = error.message || 'Failed to load images';
   } finally {
     loader.classList.add('hidden');
     isLoading = false;
@@ -69,7 +86,7 @@ async function searchImages() {
 }
 
 // ────────────────────────────────────────────────
-// Display the images (max 5)
+// Display images
 function displayImages(photos) {
   photos.forEach(photo => {
     const card = document.createElement('div');
@@ -77,7 +94,7 @@ function displayImages(photos) {
 
     const img = document.createElement('img');
     img.src = photo.urls?.small || '';
-    img.alt = photo.alt_description || 'Unsplash image';
+    img.alt = photo.alt_description || 'photo';
     img.loading = 'lazy';
 
     const info = document.createElement('div');
@@ -87,10 +104,7 @@ function displayImages(photos) {
     card.appendChild(img);
     card.appendChild(info);
 
-    // Open lightbox on click
     card.addEventListener('click', () => openLightbox(photo));
-
-    // Optional fade-in effect
     img.onload = () => card.classList.add('loaded');
 
     imageGrid.appendChild(card);
@@ -98,25 +112,16 @@ function displayImages(photos) {
 }
 
 // ────────────────────────────────────────────────
-// Lightbox functionality
+// Lightbox (minimal version)
 function openLightbox(photo) {
   if (!photo?.urls?.regular) return;
-
   lightboxImg.src = photo.urls.regular;
-  lightboxImg.alt = photo.alt_description || 'Enlarged photo';
-
-  document.getElementById('imageTitle').textContent =
-    photo.description || photo.alt_description || 'Photo from Unsplash';
-
-  document.getElementById('imageAuthor').textContent =
-    `By ${photo.user?.name || 'Anonymous'}`;
-
-  const downloadLink = document.getElementById('downloadBtn');
-  if (downloadLink) {
-    downloadLink.href = photo.links?.html 
-      ? photo.links.html + '?utm_source=your_app&utm_medium=referral'
-      : '#';
-  }
+  document.getElementById('imageTitle').textContent = 
+    photo.description || photo.alt_description || 'Photo';
+  document.getElementById('imageAuthor').textContent = 
+    `By ${photo.user?.name || 'Unknown'}`;
+  document.getElementById('downloadBtn').href = 
+    photo.links?.html + '?utm_source=your_app' || '#';
 
   lightbox.classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -129,25 +134,30 @@ function closeLightbox() {
 
 // ────────────────────────────────────────────────
 // Event Listeners
-searchBtn.addEventListener('click', searchImages);
-
-searchInput.addEventListener('keypress', (e) => {
+searchBtn.addEventListener('click', () => loadImages(true));
+searchInput.addEventListener('keypress', e => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    searchImages();
+    loadImages(true);
   }
 });
 
 document.querySelector('.close-lightbox')?.addEventListener('click', closeLightbox);
-
-lightbox?.addEventListener('click', (e) => {
+lightbox?.addEventListener('click', e => {
   if (e.target === lightbox) closeLightbox();
 });
 
-// Clear results when input is emptied
-searchInput.addEventListener('input', () => {
-  if (!searchInput.value.trim() && imageGrid.children.length > 0) {
-    imageGrid.innerHTML = '';
-    statusInfo.textContent = 'Enter a keyword to begin';
+// Infinite scroll
+window.addEventListener('scroll', () => {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
+      !isLoading && currentQuery) {
+    loadImages(false);
+  }
+});
+
+// Optional: restart search when user changes the number
+perPageInput?.addEventListener('change', () => {
+  if (currentQuery && imageGrid.children.length > 0) {
+    loadImages(true);
   }
 });
