@@ -1,4 +1,4 @@
-const ACCESS_KEY = 'YOUR_UNSPLASH_ACCESS_KEY';
+const ACCESS_KEY = 'z-GznD9KMG_PsVgLdvBxCirlR5o8kpXZ7adhCqvNBvY';
 
 const searchInput  = document.getElementById('searchInput');
 const perPageInput = document.getElementById('perPageInput');
