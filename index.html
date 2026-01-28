@@ -17,6 +17,18 @@
 </head>
 
 <body>
+    <input id="searchInput" type="text" placeholder="Search images" />
+
+<input id="perPageInput" type="number" placeholder="Image count" min="1" />
+
+<button id="searchBtn">Search</button>
+
+<p id="statusInfo"></p>
+
+<div id="loader" class="hidden">Loading...</div>
+
+<div id="imageGrid"></div>
+
     <div class="bg-blobs">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
